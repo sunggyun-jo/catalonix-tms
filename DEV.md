@@ -1,12 +1,10 @@
-# 개발자 가이드
+# Getting Started
 
 ## Prerequisites
 - Docker Desktop 
 - Python 3.10
 
-## Getting Started
-
-### 
+## Installation
 ```bash
 $ git clone https://github.com/sunggyun-jo/catalonix-tms.git --depth 1 --branch main
 ```
