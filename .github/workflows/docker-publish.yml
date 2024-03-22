@@ -23,7 +23,7 @@ env:
 jobs:
   build:
 
-    runs-on: [arc-runner-set]
+    runs-on: [self-hosted]
     permissions:
       contents: read
       packages: write
