@@ -7,11 +7,3 @@ setup.py
 debian/
 doc/
 setup/
-
-addons/tests*/
-#!addons/account*/
-#!addons/auth*/
-#!addons/base*/
-
-odoo/tests/
-odoo/addons/test*/
