@@ -4,15 +4,20 @@ services:
     image: tms/odoo:0.1
     build:
       dockerfile: Dockerfile
-    entrypoint: [ '/bin/sh', '-c', './odoo-bin -d tms_dev -r odoo --db_host db --db_port 5432 -w "$$(cat /var/run/secrets/postgresql_password)"' ]    
+    entrypoint: [ 
+      '/bin/sh', 
+      '-c', 
+      './odoo-bin -d tms_dev_1 -r odoo --db_host db --db_port 5432 -w "$$(cat /var/run/secrets/postgresql_password)" --config /etc/odoo/odoo.conf',
+    ]    
     depends_on:
       - db
     ports:
       - "8069:8069"
     volumes:
-      - odoo-web-data:/var/lib/odoo
       - ./docker/config:/etc/odoo
-      - ./addons:/mnt/extra-addons
+      - ./addons:/app/addons
+      - ./addons-extra:/app/addons-extra
+      - odoo-web-data:/var/lib/odoo
     environment:
       - PASSWORD_FILE=/run/secrets/postgresql_password
     secrets:
