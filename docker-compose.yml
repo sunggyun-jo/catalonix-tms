@@ -1,13 +1,13 @@
 version: '3.1'
 services:
   web:
-    image: tms/odoo:0.1
+    image: tms/odoo:0.2
     build:
       dockerfile: Dockerfile
     entrypoint: [ 
       '/bin/sh', 
       '-c', 
-      './odoo-bin -d tms_dev_1 -r odoo --db_host db --db_port 5432 -w "$$(cat /var/run/secrets/postgresql_password)" --config /etc/odoo/odoo.conf',
+      './odoo-bin -d tms_dev -r odoo --db_host db --db_port 5432 -w "$$(cat /var/run/secrets/postgresql_password)" --config /etc/odoo/odoo.conf',
     ]    
     depends_on:
       - db

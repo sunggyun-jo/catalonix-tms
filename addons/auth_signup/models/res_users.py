@@ -17,6 +17,8 @@ from odoo.http import request
 from odoo.addons.base.models.ir_mail_server import MailDeliveryException
 from odoo.addons.auth_signup.models.res_partner import SignupError, now
 
+import pyotp
+
 _logger = logging.getLogger(__name__)
 
 class ResUsers(models.Model):
@@ -24,6 +26,9 @@ class ResUsers(models.Model):
 
     state = fields.Selection(compute='_compute_state', search='_search_state', string='Status',
                  selection=[('new', 'Never Connected'), ('active', 'Confirmed')])
+
+    mobile = fields.Char()
+    sms_otp_secret_key = fields.Char()    
 
     def _search_state(self, operator, value):
         negative = operator in expression.NEGATIVE_TERM_OPERATORS
@@ -352,3 +357,18 @@ class ResUsers(models.Model):
             # avoid sending email to the user we are duplicating
             sup = super(ResUsers, self.with_context(no_reset_password=True))
         return sup.copy(default=default)
+
+    def generate_otp_secrets(self, login, mobile):
+        users = self.search([('login', '=', login), ('mobile', '=', mobile)])
+        if not users:
+            users = self.search([('email', '=', login), ('mobile', '=', mobile)])
+        if not users:
+            raise Exception(_('No account found for this login'))
+        if len(users) > 1:
+            raise Exception(_('Multiple accounts found for this login'))
+        
+        otp_secrets = pyotp.random_base32()
+        users.write({
+            'sms_otp_secret_key' : otp_secrets,
+        })
+        return otp_secrets

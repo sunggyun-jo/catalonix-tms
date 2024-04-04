@@ -22,3 +22,8 @@ class ResConfigSettings(models.TransientModel):
         'res.users',
         string='Template user for new users created through signup',
         config_parameter='base.template_portal_user_id')
+
+    auth_signup_sms_otp_interval_sec = fields.Integer(
+        string='SMS OTP Interval Seconds',
+        config_parameter='auth_signup.sms_otp_interval_sec'
+    )

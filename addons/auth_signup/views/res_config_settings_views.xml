@@ -18,6 +18,9 @@
                     <setting string="Password Reset" help="Enable password reset from Login page" id="enable_password_reset">
                         <field name="auth_signup_reset_password"/>
                     </setting>
+                    <setting string="SMS OTP Interval (sec)" help="OTP expires interval" id="sms_otp_interval_sec">
+                        <field name="auth_signup_sms_otp_interval_sec"/>
+                    </setting>
                 </xpath>
             </field>
         </record>
