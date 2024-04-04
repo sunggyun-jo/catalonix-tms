@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import logging
+import urllib.request
+import urllib.parse
+import json
+
 import werkzeug
 from werkzeug.urls import url_encode
 
@@ -10,6 +14,8 @@ from odoo.addons.web.controllers.home import ensure_db, Home, SIGN_UP_REQUEST_PA
 from odoo.addons.base_setup.controllers.main import BaseSetup
 from odoo.exceptions import UserError
 from odoo.http import request
+
+import pyotp
 
 _logger = logging.getLogger(__name__)
 
@@ -69,6 +75,35 @@ class AuthSignupHome(Home):
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['Content-Security-Policy'] = "frame-ancestors 'self'"
         return response
+    
+    def _send_sms_otp(self, login, mobile):
+        
+        otp_secret_key = request.env['res.users'].sudo().generate_otp_secrets(login, mobile)
+        signup_config = self.get_auth_signup_config()
+        totp = pyotp.TOTP(otp_secret_key, interval=signup_config["sms_otp_interval_sec"])
+
+        plain_text_message = "Catalonix-TMS code: {}".format(totp.now())
+        message = urllib.parse.quote(plain_text_message)
+        url = f"https://api.telegram.org/bot7125058028:AAFcsadtkefBqNCBiX0-masYAvanLWDiVE8/sendMessage?chat_id={mobile}&text={message}"
+        req = urllib.request.Request(url=url)
+        reply = json.loads(urllib.request.urlopen(req).read().decode('UTF-8'))
+        if reply.get("error"):
+            raise Exception(reply["error"])
+        return reply["result"]
+    
+    def _validate_sms_otp(self, login, mobile, otp):
+        User = request.env['res.users']
+        user_sudo = User.sudo().search([('login', '=', login),('mobile', '=', mobile)], limit=1)
+        otp_secret_key = user_sudo.sms_otp_secret_key
+
+        signup_config = self.get_auth_signup_config()
+        totp = pyotp.TOTP(otp_secret_key, interval=signup_config["sms_otp_interval_sec"])
+        if not totp.verify(otp):
+            raise Exception("Invalid SMS OTP")
+        
+        request.env['res.users'].sudo().reset_password(login)
+        return user_sudo.signup_url
+
 
     @http.route('/web/reset_password', type='http', auth='public', website=True, sitemap=False)
     def web_auth_reset_password(self, *args, **kw):
@@ -82,14 +117,21 @@ class AuthSignupHome(Home):
                 if qcontext.get('token'):
                     self.do_signup(qcontext)
                     return self.web_login(*args, **kw)
+                elif qcontext.get('login') and qcontext.get('mobile') and not qcontext.get('otp'):
+                    _logger.info("Send To SMS OTP from %s", qcontext)
+                    self._send_sms_otp(qcontext.get('login'), qcontext.get('mobile'))
+                    qcontext['send_otp'] = _("Send to SMS")
                 else:
                     login = qcontext.get('login')
                     assert login, _("No login provided.")
                     _logger.info(
                         "Password reset attempt for <%s> by user <%s> from %s",
                         login, request.env.user.login, request.httprequest.remote_addr)
-                    request.env['res.users'].sudo().reset_password(login)
-                    qcontext['message'] = _("Password reset instructions sent to your email")
+                    
+                    signup_url = self._validate_sms_otp(login, qcontext.get('mobile'), qcontext.get('otp'))
+                    # qcontext['message'] = _("Password reset instructions sent to your email")
+
+                    return request.redirect(signup_url)
             except UserError as e:
                 qcontext['error'] = e.args[0]
             except SignupError:
@@ -116,11 +158,12 @@ class AuthSignupHome(Home):
             'disable_database_manager': not tools.config['list_db'],
             'signup_enabled': request.env['res.users']._get_signup_invitation_scope() == 'b2c',
             'reset_password_enabled': get_param('auth_signup.reset_password') == 'True',
+            'sms_otp_interval_sec': int(get_param('auth_signup.sms_otp_interval_sec')),
         }
 
     def get_auth_signup_qcontext(self):
         """ Shared helper returning the rendering context for signup and reset password """
-        qcontext = {k: v for (k, v) in request.params.items() if k in SIGN_UP_REQUEST_PARAMS}
+        qcontext = {k: v for (k, v) in request.params.items() if k in SIGN_UP_REQUEST_PARAMS or k in {'mobile', 'otp'}}
         qcontext.update(self.get_auth_signup_config())
         if not qcontext.get('token') and request.session.get('auth_signup_token'):
             qcontext['token'] = request.session.get('auth_signup_token')

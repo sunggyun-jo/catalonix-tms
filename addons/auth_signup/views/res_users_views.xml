@@ -30,6 +30,12 @@
                          <field name="signup_valid" invisible="1"/>
                      </div>
                  </xpath>
+
+                 <xpath expr="//field[@name='login']" position="after">
+                    <label for="mobile" string="Mobile"/>
+                    <h2><field name="mobile" placeholder="e.g. 010-1234-1234"/></h2>
+                 </xpath>
+
             </field>
         </record>
 
